@@ -65,9 +65,22 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, labels, pad_token
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
-        {"params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-         "weight_decay": args.weight_decay},
-        {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0}
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if all(nd not in n for nd in no_decay)
+            ],
+            "weight_decay": args.weight_decay,
+        },
+        {
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": 0.0,
+        },
     ]
     # for crf might wanna change this to SGD with gradient clipping and my other scheduler **** eskiler adamken bile 1000lerden başlayıp 10lara düşüyo
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
@@ -153,7 +166,7 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, labels, pad_token
 
                             if args.local_rank in [-1, 0] and args.save_steps > 0 and global_step % args.save_steps == 0:
                                 # Save model checkpoint
-                                output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))
+                                output_dir = os.path.join(args.output_dir, f"checkpoint-{global_step}")
                                 if not os.path.exists(output_dir):
                                     os.makedirs(output_dir)
                                 model_to_save = model.module if hasattr(model, "module") else model  # Take care of distributed/parallel training
@@ -176,9 +189,6 @@ def train(args, train_dataset, eval_dataset, model, tokenizer, labels, pad_token
             train_iterator.close()
             break
 
-    #/if args.local_rank in [-1, 0]:
-        #tb_writer.close()
-
     return global_step, tr_loss / global_step
 
 def evaluate(args, model, eval_dataset, tokenizer, labels, pad_token_label_id, mode, device, prefix=""):
@@ -186,7 +196,7 @@ def evaluate(args, model, eval_dataset, tokenizer, labels, pad_token_label_id, m
     OmegaConf.set_struct(args, True)
     with open_dict(args):
         args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
-    
+
     # Note that DistributedSampler samples randomly
     eval_sampler = SequentialSampler(eval_dataset) if args.local_rank == -1 else DistributedSampler(eval_dataset)
     eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
@@ -233,7 +243,7 @@ def evaluate(args, model, eval_dataset, tokenizer, labels, pad_token_label_id, m
 
     eval_loss = eval_loss / nb_eval_steps
 
-    label_map = {i: label for i, label in enumerate(labels)}
+    label_map = dict(enumerate(labels))
 
     out_label_list = [[] for _ in range(out_label_ids.shape[0])]
     preds_list = [[] for _ in range(out_label_ids.shape[0])]
@@ -262,10 +272,8 @@ def load_and_cache_examples(args, examples, tokenizer, labels, pad_token_label_i
 
     # Load data features from cache or dataset file
     cached_features_file = os.path.join(
-        args.data_dir, 
-        "cached_{}_{}_{}".format(mode,
-        list(filter(None,args.model_name_or_path.split("/"))).pop(),
-        str(args.max_seq_length))
+        args.data_dir,
+        f'cached_{mode}_{list(filter(None, args.model_name_or_path.split("/"))).pop()}_{str(args.max_seq_length)}',
     )
     if os.path.exists(cached_features_file) and not args.overwrite_cache:
         logger.info("Loading features from cached file %s", cached_features_file)
@@ -273,18 +281,21 @@ def load_and_cache_examples(args, examples, tokenizer, labels, pad_token_label_i
     else:
         logger.info("Creating features from dataset file at %s", args.data_dir)
         features = convert_examples_to_features(
-            examples, 
-            labels, 
-            args.max_seq_length, tokenizer,
-            cls_token_at_end=bool(args.model_type in ["xlnet"]),# xlnet has a cls token at the end
+            examples,
+            labels,
+            args.max_seq_length,
+            tokenizer,
+            cls_token_at_end=args.model_type in ["xlnet"],
             cls_token=tokenizer.cls_token,
             cls_token_segment_id=2 if args.model_type in ["xlnet"] else 0,
             sep_token=tokenizer.sep_token,
-            sep_token_extra=bool(args.model_type in ["roberta"]),# roberta uses an extra separator b/w pairs of sentences, cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
-            pad_on_left=bool(args.model_type in ["xlnet"]), # pad on the left for xlnet
-            pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
+            sep_token_extra=args.model_type in ["roberta"],
+            pad_on_left=args.model_type in ["xlnet"],
+            pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[
+                0
+            ],
             pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0,
-            pad_token_label_id=pad_token_label_id
+            pad_token_label_id=pad_token_label_id,
         )
         if args.local_rank in [-1, 0]:
             logger.info("Saving features into cached file %s", cached_features_file)
@@ -299,8 +310,13 @@ def load_and_cache_examples(args, examples, tokenizer, labels, pad_token_label_i
     all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
     all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
     all_token_type_ids = None if features[0].token_type_ids is None else torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
-    dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_token_type_ids)
-    return dataset
+    return TensorDataset(
+        all_input_ids,
+        all_input_mask,
+        all_segment_ids,
+        all_label_ids,
+        all_token_type_ids,
+    )
 
 @hydra.main(config_path="./conf", config_name="train.yaml")
 def main(args):

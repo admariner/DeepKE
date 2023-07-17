@@ -45,8 +45,7 @@ class Embedding(torch.nn.Module):
             :obj:`torch.Tensor` of shape ``(batch_size, seq_len, embedding_size)``: The embedding output.
         """  # noqa: E501
 
-        embeds = F.embedding(ids, self.weight) / math.sqrt(self.dim_model)
-        return embeds
+        return F.embedding(ids, self.weight) / math.sqrt(self.dim_model)
 
     def projection(self, x: torch.Tensor):
         """
@@ -56,8 +55,7 @@ class Embedding(torch.nn.Module):
         Returns:
             :obj:`torch.Tensor` of shape ``(batch, seq_len, vocab_output_size)``: The projection output.
         """  # noqa: E501
-        logits = F.linear(x / math.sqrt(self.dim_model), self.weight)
-        return logits
+        return F.linear(x / math.sqrt(self.dim_model), self.weight)
 
 
 class EmbeddingExt(torch.nn.Module):

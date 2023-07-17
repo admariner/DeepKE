@@ -15,9 +15,8 @@ def _get_logger():
     node_name = os.getenv("NODE_NAME", str(bmt.rank()))
     console_handle.setFormatter(
         logging.Formatter(
-            '[%(levelname)s][%(asctime)s][{}][%(filename)s:%(lineno)d:%(process)d] - %(message)s'
-            .format(node_name),
-            datefmt='%Y-%m-%d %H:%M:%S'
+            f'[%(levelname)s][%(asctime)s][{node_name}][%(filename)s:%(lineno)d:%(process)d] - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
         )
     )
     log.addHandler(console_handle)
@@ -43,10 +42,7 @@ class LogManager:
                 break
             now -= datetime.timedelta(days=1)
 
-        if latest_log is None:
-            self.global_token_pass = 0
-        else:
-            self.global_token_pass = latest_log["token pass"]
+        self.global_token_pass = 0 if latest_log is None else latest_log["token pass"]
 
     def get_log_time(self) -> datetime.datetime:
         return datetime.datetime.utcnow() + datetime.timedelta(hours=16)
@@ -54,7 +50,7 @@ class LogManager:
     def get_log_name(self, now: Optional[datetime.datetime] = None):
         if now is None:
             now = self.get_log_time()
-        return os.path.join(self.path, "log.%s.txt" % now.strftime("%Y%m%d"))
+        return os.path.join(self.path, f'log.{now.strftime("%Y%m%d")}.txt')
 
     def write(
         self,

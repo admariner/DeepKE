@@ -17,11 +17,7 @@ from utils.prompter import Prompter
 from utils.general_utils import get_model_tokenizer, get_model_name
 
 
-if torch.cuda.is_available():
-    device = "cuda"
-else:
-    device = "cpu"
-
+device = "cuda" if torch.cuda.is_available() else "cpu"
 try:
     if torch.backends.mps.is_available():
         device = "mps"
@@ -40,11 +36,11 @@ class InferArguments:
     input_file: str = field(default=None, metadata={"help": "Path to the input file."})
     output_file: str = field(default=None, metadata={"help": "Path to the output file."})
     prompt_template_name: str = field(default='alpaca', metadata={"help": "Prompt template name. All prompt template can be found in ./templates"})
-    
+
     max_source_length: int = field(default=512, metadata={"help": "The maximum total input sequence length after tokenization. Sequences longer than this will be truncated, sequences shorter will be padded."})
     max_target_length: int = field(default=256, metadata={"help": "The maximum total sequence length for target text after tokenization. Sequences longer than this will be truncated, sequences shorter will be padded."})
     cutoff_len: int = field(default=512, metadata={"help": "cutoff length"})
-    
+
     trust_remote_code: bool = field(default=True, metadata={"help": "Enable unpickling of arbitrary code in AutoModelForCausalLM#from_pretrained."})
     train_on_inputs: bool = field(default=False, metadata={"help": "If False, masks out inputs in loss."})
     bits: int = field(default=16, metadata={"help": "How many bits to use."})

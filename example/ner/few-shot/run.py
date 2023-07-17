@@ -75,7 +75,7 @@ def main(cfg):
     cwd = utils.get_original_cwd()
     cfg.cwd = cwd
     print(cfg)
-    
+
     data_path = DATA_PATH[cfg.dataset_name]
     for mode, path in data_path.items():
         data_path[mode] = os.path.join(cfg.cwd, path)
@@ -84,16 +84,19 @@ def main(cfg):
 
     set_seed(cfg.seed) # set seed, default is 1
     if cfg.save_path is not None:  # make save_path dir
-        cfg.save_path = os.path.join(cfg.save_path, cfg.dataset_name+"_"+str(cfg.batch_size)+"_"+str(cfg.learning_rate)+cfg.notes)
+        cfg.save_path = os.path.join(
+            cfg.save_path,
+            f"{cfg.dataset_name}_{str(cfg.batch_size)}_{str(cfg.learning_rate)}{cfg.notes}",
+        )
         if not os.path.exists(cfg.save_path):
             os.makedirs(cfg.save_path, exist_ok=True)
     if 'chinese' in cfg.bart_name:
         cfg.bart_name = os.path.join(utils.get_original_cwd(), cfg.bart_name)
-    
+
     process = data_process(data_path=data_path, mapping=mapping, bart_name=cfg.bart_name, learn_weights=cfg.learn_weights)
     train_dataset = dataset_class(data_processor=process, mode='train')
     train_dataloader = DataLoader(train_dataset, collate_fn=train_dataset.collate_fn, batch_size=cfg.batch_size, num_workers=4)
-    
+
     dev_dataset = dataset_class(data_processor=process, mode='dev')
     dev_dataloader = DataLoader(dev_dataset, collate_fn=dev_dataset.collate_fn, batch_size=cfg.batch_size, num_workers=4)
 

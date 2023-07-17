@@ -19,4 +19,4 @@ with open(args.output_path, 'w') as f:
             counter += 1
             f.write(json.dumps(doc) + '\n')
 
-print('Processed {} number of instances'.format(counter))
+print(f'Processed {counter} number of instances')

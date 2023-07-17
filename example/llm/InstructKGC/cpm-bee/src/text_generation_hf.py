@@ -10,8 +10,7 @@ def parse_args():
     parser.add_argument("--multi-gpu", default=False, action="store_true", help="Whether to use multi gpu.")
     parser.add_argument("--device-map", default=None, help="the device map for accelerate.")
     parser.add_argument("--delta", default=None, type=str, help="The delta path.")
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def load_delta(delta_path):
     delta_dict = torch.load(delta_path)
@@ -19,7 +18,7 @@ def load_delta(delta_path):
     for k, v in delta_dict.items():
         # CpmBeeModel -> CpmBeeForCasualLM
         if k.startswith("encoder.") or k.startswith("input_embedding.") or k.startswith("position_bias."):
-            delta_with_prefix["cpmbee."+k] = v
+            delta_with_prefix[f"cpmbee.{k}"] = v
         else:
             delta_with_prefix[k] = v
     del delta_dict

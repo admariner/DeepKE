@@ -3,7 +3,7 @@ import json
 
 
 def prepare_examples(data_path, task, language):
-    data_name = task + '_' + language + '.json'
+    data_name = f'{task}_{language}.json'
     data_path = os.path.join(data_path, data_name)
     data = json.load(open(data_path, 'r'))
     if task == 'ner':

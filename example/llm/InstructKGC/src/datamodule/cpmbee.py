@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Tuple
 def preprocess_cpmbee(example, prompter, tokenizer, options):
     #data = {"prompt": example["instruction"], "input": example["input"], "<ans>": example["output"]}
     data = {"input": example["instruction"]+ "\n" + example["input"], "<ans>": example["output"]}
-    raw_data = {}
     (
         input_ids,
         input_id_subs,
@@ -23,8 +22,7 @@ def preprocess_cpmbee(example, prompter, tokenizer, options):
     input_id_subs = input_id_subs[: options.cutoff_len]
     context = context[: options.cutoff_len]
     segment_ids = segment_ids[: options.cutoff_len]
-    raw_data["input"] = data
-    raw_data["samples"] = []
+    raw_data = {"input": data, "samples": []}
     sample_ids = np.zeros(input_ids.shape, dtype=np.int32)
     segment_rel_offset = np.zeros(input_ids.shape, dtype=np.int32)
     num_segments = np.full(input_ids.shape, n_segments, dtype=np.int32)
@@ -124,8 +122,8 @@ class DataCollatorForCPMBEE:
                         tgt[i, j - 1] = self.tokenizer.eos_token_id
             if context[i, instance_length - 1] == 0:
                 tgt[i, instance_length - 1] = self.tokenizer.eos_token_id
-        
-        if len(batch_ext_table_map) == 0:
+
+        if not batch_ext_table_map:
             # placeholder
             batch_ext_table_ids.append(0)
             batch_ext_table_sub.append(1)

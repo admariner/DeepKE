@@ -144,5 +144,4 @@ def get_args(pretrain: bool = False, finetune: bool = False):
     if finetune:
         parser = add_finetune_args(parser)
 
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()

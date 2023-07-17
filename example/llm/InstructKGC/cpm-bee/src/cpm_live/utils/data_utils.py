@@ -6,8 +6,7 @@ def pad(orig_items, key, padding_value=0, padding_side="left"):
     if isinstance(orig_items[0][key], list):
         assert isinstance(orig_items[0][key][0], torch.Tensor)
         for it in orig_items:
-            for tr in it[key]:
-                items.append({key: tr})
+            items.extend({key: tr} for tr in it[key])
     else:
         assert isinstance(orig_items[0][key], torch.Tensor)
         items = orig_items
@@ -20,11 +19,9 @@ def pad(orig_items, key, padding_value=0, padding_side="left"):
     min_length = min(item[key].shape[-1] for item in items)
     dtype = items[0][key].dtype
 
-    if dim == 1:
+    if dim != 1 and dim == 2 and max_length == min_length or dim == 1:
         return torch.cat([item[key] for item in items], dim=0)
     elif dim == 2:
-        if max_length == min_length:
-            return torch.cat([item[key] for item in items], dim=0)
         tensor = torch.zeros((batch_size, max_length), dtype=dtype) + padding_value
     else:
         tensor = torch.zeros((batch_size, max_length, shape[-1]), dtype=dtype) + padding_value

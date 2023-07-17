@@ -48,8 +48,7 @@ class Seq2SeqDataSet(Dataset):
         return len(self.all_data)
 
     def __getitem__(self, item):
-        instance = self.all_data[item]
-        return instance
+        return self.all_data[item]
 
 
 def coll_fn(batch):
@@ -143,7 +142,7 @@ def main():
             }
 
     for name, param in model.named_parameters():
-        if not any(nd in name for nd in ["prefix_encoder"]):
+        if all(nd not in name for nd in ["prefix_encoder"]):
             param.requires_grad = False
 
     print_trainable_parameters(model)
@@ -165,7 +164,7 @@ def main():
                                                          model_parameters=model.parameters())
     model_engine.train()
     global_step = 0
-    for i_epoch in range(args.num_train_epochs):
+    for _ in range(args.num_train_epochs):
         train_iter = iter(train_dataloader)
         for step, batch in enumerate(train_iter):
             input_ids = batch["input_ids"].cuda()
@@ -180,7 +179,7 @@ def main():
                 model_engine.step()
                 global_step += 1
             if global_step % args.log_steps == 0:
-                print("loss:{}, global_step:{}".format(float(loss.item()), global_step))
+                print(f"loss:{float(loss.item())}, global_step:{global_step}")
         save_dir = os.path.join(args.output_dir, f"global_step-{global_step}")
         model.save_pretrained(save_dir)
         copy(os.path.join(args.model_dir, "tokenizer_config.json"), os.path.join(save_dir, "tokenizer_config.json"))

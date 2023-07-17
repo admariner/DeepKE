@@ -12,7 +12,14 @@ def main(cfg):
             label2id = pickle.load(inp)
             id2label = pickle.load(inp)
 
-        model = InferNer(utils.get_original_cwd() + '/' + "checkpoints/", cfg, len(word2id), len(label2id), word2id, id2label)
+        model = InferNer(
+            f'{utils.get_original_cwd()}/checkpoints/',
+            cfg,
+            len(word2id),
+            len(label2id),
+            word2id,
+            id2label,
+        )
     elif cfg.model_name == 'bert':
         model = InferNer(os.path.join(utils.get_original_cwd(), "checkpoints"), cfg)
     else:

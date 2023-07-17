@@ -108,14 +108,14 @@ def get_accelerate_model(args, model_class):
     setattr(model, 'is_parallelizable', True)
     model.config.torch_dtype=compute_dtype
 
-    if not args.full_finetune:    
-        if args.bits in [4, 8]:
+    if args.bits in [4, 8]:
+        if not args.full_finetune:
             model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=args.gradient_checkpointing)
     if args.gradient_checkpointing:
         model.gradient_checkpointing_enable()
 
     if not args.full_finetune:
-        print(f'adding LoRA modules...')
+        print('adding LoRA modules...')
         config = LoraConfig(
             r=args.lora_r,
             lora_alpha=args.lora_alpha,
@@ -159,8 +159,7 @@ def verify_datatype(model):
         dtype = p.dtype
         if dtype not in dtypes: dtypes[dtype] = 0
         dtypes[dtype] += p.numel()
-    total = 0
-    for k, v in dtypes.items(): total+= v
+    total = sum(dtypes.values())
     for k, v in dtypes.items():
         print(k, v, v/total)
 
@@ -174,29 +173,23 @@ def train(model_args, data_args, training_args, args):
     tokenizer = tokenizer_class.from_pretrained(
         model_args.model_name_or_path, 
         trust_remote_code=args.trust_remote_code
-    )  
+    )
     model, args = get_accelerate_model(args, model_class)
     model.config.use_cache = False
     model.print_trainable_parameters()
     world_size = int(os.environ.get("WORLD_SIZE", 1))
     ddp = world_size != 1
-    if ddp:
-        training_args.ddp_find_unused_parameters = False
-    else:
-        training_args.ddp_find_unused_parameters = None
-
-
+    training_args.ddp_find_unused_parameters = False if ddp else None
     if data_args.train_file is not None:
         train_data = Dataset.from_json(data_args.train_file)
     if data_args.valid_file is not None:
         valid_data = Dataset.from_json(data_args.valid_file)
-    else:
-        if training_args.do_eval and data_args.val_set_size > 0:
-            train_val = train_data.train_test_split(test_size=data_args.val_set_size, shuffle=True, seed=42)
-            train_data = train_val["train"]
-            valid_data = train_val["test"]
-    
-    
+    elif training_args.do_eval and data_args.val_set_size > 0:
+        train_val = train_data.train_test_split(test_size=data_args.val_set_size, shuffle=True, seed=42)
+        train_data = train_val["train"]
+        valid_data = train_val["test"]
+
+
     coll_fn, data_collator, prompter = get_specific(model_args.model_name, tokenizer, model, data_args)
     fn_kwargs = {"prompter":prompter, "tokenizer":tokenizer, "options":data_args}
     logger.info(f"coll_fn:{coll_fn}\ndata_collator:{data_collator}\nprompter:{prompter}\n")
@@ -242,7 +235,7 @@ def train(model_args, data_args, training_args, args):
         trainer.log_metrics("train", metrics)
         trainer.save_metrics("train", metrics)
         trainer.save_state()
-        all_metrics.update(metrics)
+        all_metrics |= metrics
     if args.do_eval:
         logger.info("*** Evaluate ***")
         metrics = trainer.evaluate(metric_key_prefix="eval")

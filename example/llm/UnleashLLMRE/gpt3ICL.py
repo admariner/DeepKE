@@ -33,11 +33,22 @@ def f1_score(true, pred_result, rel2id):
     correct_positive = 0
     pred_positive = 0
     gold_positive = 0
-    neg = -1
-    for name in ['NA', 'na', 'no_relation', 'Other', 'Others', 'false', 'unanswerable']:
-        if name in rel2id:
-            neg = rel2id[name]
-            break
+    neg = next(
+        (
+            rel2id[name]
+            for name in [
+                'NA',
+                'na',
+                'no_relation',
+                'Other',
+                'Others',
+                'false',
+                'unanswerable',
+            ]
+            if name in rel2id
+        ),
+        -1,
+    )
     for i in range(total):
         golden = true[i]
         if golden == pred_result[i]:
@@ -61,8 +72,12 @@ def f1_score(true, pred_result, rel2id):
         micro_f1 = 2 * micro_p * micro_r / (micro_p + micro_r)
     except:
         micro_f1 = 0
-    result = {'acc': acc, 'micro_p': micro_p, 'micro_r': micro_r, 'micro_f1': micro_f1}
-    return result
+    return {
+        'acc': acc,
+        'micro_p': micro_p,
+        'micro_r': micro_r,
+        'micro_f1': micro_f1,
+    }
 
 
 if __name__ == "__main__":

@@ -11,18 +11,21 @@ def parse_args():
     parser.add_argument("--memory-limit", type=int, default=20, help="GPU Memory limit, in GB")
     parser.add_argument("--delta", default=None, type=str, help="The path to lora.")
     parser.add_argument("--device", default="cuda:0", type=str, help="The target device.")
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()
     data_list=[]
     with open('valid1.json', 'r', encoding='utf-8') as f:
         d = [json.loads(line.strip()) for line in f]
-        for data in d:
-            data_list.append(
-                {"input": data["input"], "prompt": data["instruction"], "<ans>": ""})
-
+        data_list.extend(
+            {
+                "input": data["input"],
+                "prompt": data["instruction"],
+                "<ans>": "",
+            }
+            for data in d
+        )
     config = CPMBeeConfig.from_json_file("config/cpm-bee-10b.json")
     ckpt_path = "path/to/checkpoint.pt"
     tokenizer = CPMBeeTokenizer()

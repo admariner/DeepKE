@@ -61,10 +61,7 @@ class CPMBeeConfig(Config):
         self.position_bias_max_distance = position_bias_max_distance
         self.dropout_p = dropout_p
         self.eps = eps
-        if half:
-            self.dtype = torch.half
-        else:
-            self.dtype = torch.float
+        self.dtype = torch.half if half else torch.float
         self.vocab_size = vocab_size
         self.mask_modules = mask_modules
 

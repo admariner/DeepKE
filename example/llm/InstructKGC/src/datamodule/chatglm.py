@@ -1,7 +1,6 @@
 IGNORE_INDEX = -100
 
 def preprocess_chatglm(example, prompter, tokenizer, options):
-    model_inputs = {}
     prompt = prompter.generate_prompt(example["instruction"], example["input"])
     source_ids = tokenizer.encode(text=prompt, add_special_tokens=False)
     target_ids = tokenizer.encode(text=example["output"], add_special_tokens=False)
@@ -15,13 +14,10 @@ def preprocess_chatglm(example, prompter, tokenizer, options):
     input_ids = tokenizer.build_inputs_with_special_tokens(source_ids, target_ids)
     labels = [IGNORE_INDEX] * context_length + input_ids[context_length:]
 
-    model_inputs["input_ids"] = input_ids
-    model_inputs["labels"] = labels
-    return model_inputs
+    return {"input_ids": input_ids, "labels": labels}
 
 
 def preprocess_chatglm_eval(example, prompter, tokenizer, options):
-    model_inputs = {}
     prompt, answer = prompter.generate_prompt(example)
     source_ids = tokenizer.encode(text=prompt, add_special_tokens=False)
     target_ids = tokenizer.encode(text=answer, add_special_tokens=False)
@@ -34,13 +30,10 @@ def preprocess_chatglm_eval(example, prompter, tokenizer, options):
     input_ids = tokenizer.build_inputs_with_special_tokens(source_ids)
     labels = tokenizer.build_inputs_with_special_tokens(target_ids)
 
-    model_inputs["input_ids"] = input_ids
-    model_inputs["labels"] = labels
-    return model_inputs
+    return {"input_ids": input_ids, "labels": labels}
 
 
 def preprocess_chatglm_pairwise(example, prompter, tokenizer, options):
-    model_inputs = {}
     prompt, answer = prompter.generate_prompt(example)
     source_ids = tokenizer.encode(text=prompt, add_special_tokens=False)
     accept_ids = tokenizer.encode(text=answer[0], add_special_tokens=False)
@@ -56,9 +49,7 @@ def preprocess_chatglm_pairwise(example, prompter, tokenizer, options):
     accept_ids = tokenizer.build_inputs_with_special_tokens(source_ids[:], accept_ids) # avoid copying error
     reject_ids = tokenizer.build_inputs_with_special_tokens(source_ids[:], reject_ids)
 
-    model_inputs["input_ids"] = accept_ids
-    model_inputs["labels"] = reject_ids
-    return model_inputs
+    return {"input_ids": accept_ids, "labels": reject_ids}
 
 
 def coll_fn_chatglm(stage = "sft"):

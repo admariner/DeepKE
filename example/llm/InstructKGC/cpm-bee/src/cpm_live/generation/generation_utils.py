@@ -47,16 +47,16 @@ def apply_repetition_penalty(
     for i in range(batch_size * num_beams):
         if start_idx is None or end_idx is None:
             output_tokens = prev_output_tokens[i].tolist()
+        elif end_idx >= start_idx:
+            output_tokens = (
+                prev_output_tokens[i][
+                    max(start_idx, end_idx + 1 - window_size) : end_idx + 1
+                ].tolist()
+                if window_size
+                else prev_output_tokens[i][start_idx : end_idx + 1].tolist()
+            )
         else:
-            if end_idx >= start_idx:
-                if window_size:
-                    output_tokens = prev_output_tokens[i][
-                        max(start_idx, end_idx + 1 - window_size) : end_idx + 1
-                    ].tolist()
-                else:
-                    output_tokens = prev_output_tokens[i][start_idx : end_idx + 1].tolist()
-            else:
-                output_tokens = []
+            output_tokens = []
         for previous_token in set(output_tokens):
             # if score < 0 then repetition penalty has to
             # multiplied to reduce the previous token probability

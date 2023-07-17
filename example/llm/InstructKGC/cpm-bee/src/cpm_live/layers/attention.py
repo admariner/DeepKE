@@ -44,10 +44,7 @@ class Attention(bmt.DistributedModule):
 
         self.softmax = torch.nn.Softmax(dim=-1)
 
-        if dropout_p is not None:
-            self.dropout = torch.nn.Dropout(p=dropout_p)
-        else:
-            self.dropout = None
+        self.dropout = torch.nn.Dropout(p=dropout_p) if dropout_p is not None else None
 
     def forward(
         self,
@@ -114,7 +111,4 @@ class Attention(bmt.DistributedModule):
         score = score.contiguous().view(batch_size, len_q, self.num_heads * self.dim_head)
 
         score = self.attention_out(score)
-        if use_cache:
-            return score, (h_k, h_v)
-        else:
-            return score
+        return (score, (h_k, h_v)) if use_cache else score

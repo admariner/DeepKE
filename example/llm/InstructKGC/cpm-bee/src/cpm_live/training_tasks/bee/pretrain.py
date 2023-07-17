@@ -91,11 +91,7 @@ class CPMBeeBatch(TypedDict):
 
 def rel_to_bucket(n_up: int, n_down: int, max_depth: int = 8):
     ret = n_up * max_depth + n_down
-    if ret == 0:
-        return ret
-    else:
-        # bucket 1 is reserved for incontext samples
-        return ret + 1
+    return ret if ret == 0 else ret + 1
 
 
 def convert_data_to_id(
@@ -153,7 +149,7 @@ def convert_data_to_id(
     root["children"] = _build_dict_tree(data, 1, False)
 
     num_segments = len(segments)
-    segment_rel = np.zeros((num_segments * num_segments,), dtype=np.int32)
+    segment_rel = np.zeros((num_segments**2, ), dtype=np.int32)
 
     def _build_segment_rel(node: _DictTree) -> List[Tuple[int, int]]:
         ret: List[Tuple[int, int]] = [(node["segment_id"], node["depth"])]
@@ -219,10 +215,7 @@ def convert_data_to_id(
         token_id_subs = [0] + token_id_subs
         if not seg["need_predict"]:
             tokens = tokens + [tokenizer.eos_id]
-            token_id_subs = token_id_subs + [0]
-        else:
-            # no eos
-            pass
+            token_id_subs += [0]
         begin = len(input_ids)
         input_ids.extend(tokens)
         input_id_subs.extend(token_id_subs)
@@ -246,7 +239,7 @@ def convert_data_to_id(
 
 
 def _dataset_identity(c: _MixedDatasetConfig):
-    return "{}.{}".format(c["task_name"], c["dataset_name"])
+    return f'{c["task_name"]}.{c["dataset_name"]}'
 
 
 class _MixedDatasetBatchPacker:
@@ -294,8 +287,8 @@ class _MixedDatasetBatchPacker:
         def _walk_transform_dict(data: Union[Dict[str, Any], str], prefix: str = ""):
             if isinstance(data, dict):
                 for k, v in data.items():
-                    if len(prefix) > 0:
-                        _walk_transform_dict(v, prefix + "." + k)
+                    if prefix != "":
+                        _walk_transform_dict(v, f"{prefix}.{k}")
                     else:
                         _walk_transform_dict(v, k)
             else:
@@ -307,9 +300,9 @@ class _MixedDatasetBatchPacker:
         expanded_mapping_list: List[Tuple[str, Any]] = []
 
         def _expand_mapping(
-            data: CPMBeeInputType, stars: List[str], path: List[str], target: List[str]
-        ):
-            if len(path) == 0:
+                data: CPMBeeInputType, stars: List[str], path: List[str], target: List[str]
+            ):
+            if not path:
                 num_stars = 0
                 for it in target:
                     if it == "*":
@@ -587,7 +580,7 @@ class _MixedDatasetBatchPacker:
             if context[i, instance_length - 1] == 0:
                 tgt[i, instance_length - 1] = self.tokenizer.eos_id
 
-        if len(batch_ext_table_map) == 0:
+        if not batch_ext_table_map:
             # placeholder
             batch_ext_table_ids.append(0)
             batch_ext_table_sub.append(1)
@@ -641,10 +634,7 @@ class _MixedDatasetBatchPacker:
         for i in range(len(self._inputs)):
             space = self._max_length - self._inputs[i].shape[0]
             if input_ids.shape[0] <= space:
-                if best_fit_space is None:
-                    best_fit = i
-                    best_fit_space = space
-                elif best_fit_space > space:
+                if best_fit_space is None or best_fit_space > space:
                     best_fit = i
                     best_fit_space = space
         if best_fit is None:
@@ -690,11 +680,7 @@ class _MixedDatasetBatchPacker:
             self._task_ids[best_fit].append(config["task_name"])
             self._raw_data[best_fit].append(raw_data)
 
-        if len(self._inputs) > self._batch_size:
-            return self.pack_batch()
-        else:
-            # not ready
-            return None
+        return self.pack_batch() if len(self._inputs) > self._batch_size else None
 
 
 class _MixedDatasetConfigMananger:
@@ -734,8 +720,8 @@ class _MixedDatasetConfigMananger:
         if self._config is None:
             if not self.changed():
                 raise RuntimeError("Failed to load config")
-            if self._config is None:
-                raise RuntimeError("Failed to load config")
+        if self._config is None:
+            raise RuntimeError("Failed to load config")
         return self._config
 
 
@@ -761,7 +747,7 @@ def _mixed_dataset_process(
             return os.path.join(config_base_path, transform_path)
 
     def _build_sample_weights(config: List[_MixedDatasetConfig]):
-        if len(config) == 0:
+        if not config:
             return np.array([], dtype=np.float32)
         weights = [c["weight"] * c["lines"] for c in config]
         weights = np.array(weights, dtype=np.float32)
@@ -987,7 +973,7 @@ class MixedDataset:
         self._q_cmd.put("state_dict")
         states = self._q_cmd_out.get()
         if not isinstance(states, OrderedDict):
-            raise RuntimeError("Invalid state dict {}".format(states))
+            raise RuntimeError(f"Invalid state dict {states}")
         if bmt.world_size() == 1:
             for val in states.values():
                 val["states"].unsqueeze_(0)
@@ -1020,13 +1006,13 @@ class MixedDataset:
         missing = self._q_cmd_out.get()
         if strict:
             if len(missing) > 0:
-                raise RuntimeError("Missing dataset state: {}".format(missing))
+                raise RuntimeError(f"Missing dataset state: {missing}")
         return missing
 
     def get(self) -> CPMBeeBatch:
         ret: CPMBeeBatch = self._q_data.get()  # type: ignore
         if not isinstance(ret, dict):
-            raise RuntimeError("Invalid data {}".format(ret))
+            raise RuntimeError(f"Invalid data {ret}")
         return ret
 
     def __iter__(self):

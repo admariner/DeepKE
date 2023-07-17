@@ -146,8 +146,7 @@ class CPMAntTokenizer(object):
     def decode(self, tokens):
         """Decode ids into a string."""
         tokens = [i for i in tokens if i >= 0]
-        text = "".join([self.decoder[x] for x in tokens])
-        return text
+        return "".join([self.decoder[x] for x in tokens])
 
     def check(self, token):
         return token in self.encoder

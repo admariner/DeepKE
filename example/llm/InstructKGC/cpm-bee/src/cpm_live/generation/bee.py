@@ -62,7 +62,7 @@ class CPMBeeGeneration:
                 tmp_input_sub.append(input_id_subs[i])
                 tmp_input_seg.append(segment_ids[i])
 
-        if len(predict_segments) == 0:
+        if not predict_segments:
             raise ValueError("No answer to predict")
 
         input_ids = np.array(tmp_input_ids, dtype=np.int32)
@@ -186,10 +186,7 @@ class CPMBeeGeneration:
             )
 
         keys = set(pack_tensor[0].keys())
-        padded = {}
-        for key in keys:
-            padded[key] = pad(pack_tensor, key)
-
+        padded = {key: pad(pack_tensor, key) for key in keys}
         max_num_rels = 0
         for rel in segment_rel_pack:
             max_num_rels = max(max_num_rels, rel.size(0))

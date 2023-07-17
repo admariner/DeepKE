@@ -59,10 +59,7 @@ class SelfAttentionBlock(bmt.DistributedModule):
             dropout_p=dropout_p,
         )
 
-        if dropout_p:
-            self.dropout = torch.nn.Dropout(dropout_p)
-        else:
-            self.dropout = None
+        self.dropout = torch.nn.Dropout(dropout_p) if dropout_p else None
 
     def forward(
         self,
@@ -93,10 +90,7 @@ class SelfAttentionBlock(bmt.DistributedModule):
             x = self.dropout(x)
         hidden_states = (hidden_states + x) / 1.05
 
-        if use_cache:
-            return hidden_states, current_key_value
-        else:
-            return hidden_states
+        return (hidden_states, current_key_value) if use_cache else hidden_states
 
 
 class FFNBlock(torch.nn.Module):
@@ -133,10 +127,7 @@ class FFNBlock(torch.nn.Module):
             dropout_p=dropout_p,
         )
 
-        if dropout_p:
-            self.dropout = torch.nn.Dropout(dropout_p)
-        else:
-            self.dropout = None
+        self.dropout = torch.nn.Dropout(dropout_p) if dropout_p else None
 
     def forward(
         self,
@@ -243,7 +234,4 @@ class TransformerBlock(torch.nn.Module):
         if not self.mask_ffn:
             hidden_states = self.ffn(hidden_states)
 
-        if use_cache:
-            return hidden_states, current_key_value
-        else:
-            return hidden_states
+        return (hidden_states, current_key_value) if use_cache else hidden_states

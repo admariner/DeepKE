@@ -44,11 +44,11 @@ def _preprocess_data(data, cfg):
 def _get_predict_instance(cfg):
     flag = input('是否使用范例[y/n]，退出请输入: exit .... ')
     flag = flag.strip().lower()
-    if flag == 'y' or flag == 'yes':
+    if flag in ['y', 'yes']:
         sentence = '张冬梅，女，汉族，1968年2月生，河南淇县人，1988年7月加入中国共产党，1989年9月参加工作，中央党校经济管理专业毕业，中央党校研究生学历'
         entity = '张冬梅'
         attribute_value = '汉族'
-    elif flag == 'n' or flag == 'no':
+    elif flag in ['n', 'no']:
         sentence = input('请输入句子：')
         entity = input('请输入句中需要预测的实体：')
         attribute_value = input('请输入句中需要预测的属性值：')
@@ -57,10 +57,9 @@ def _get_predict_instance(cfg):
     else:
         print('please input yes or no, or exit!')
         _get_predict_instance(cfg)
-        
 
-    instance = dict()
-    instance['sentence'] = sentence.strip()
+
+    instance = {'sentence': sentence.strip()}
     instance['entity'] = entity.strip()
     instance['attribute_value'] = attribute_value.strip()
     instance['entity_offset'] = sentence.find(entity)
@@ -111,9 +110,9 @@ def main(cfg):
     model.to(device)
     model.eval()
 
-    x = dict()
+    x = {}
     x['word'], x['lens'] = torch.tensor([data[0]['token2idx'] + [0] * (512 - len(data[0]['token2idx']))]), torch.tensor([data[0]['seq_len']])
-    
+
     if cfg.model_name != 'lm':
         x['entity_pos'], x['attribute_value_pos'] = torch.tensor(data[0]['entity_pos'] + [0] * (512 - len(data[0]['token2idx']))), torch.tensor(data[0]['attribute_value_pos'] + [0] * (512 - len(data[0]['token2idx'])))
         if cfg.model_name == 'cnn':
@@ -125,7 +124,7 @@ def main(cfg):
             x['adj'] = adj
 
 
-    for key in x.keys():
+    for key in x:
         x[key] = x[key].to(device)
 
     with torch.no_grad():

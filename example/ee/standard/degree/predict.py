@@ -47,15 +47,20 @@ def get_span_idx(pieces, token_start_idxs, span, tokenizer, trigger_span=None):
         if j == len(words):
             candidates.append((i, i + k))
 
-    candidates = [(token_start_idxs.index(c1), token_start_idxs.index(c2)) for c1, c2 in candidates if
-                  c1 in token_start_idxs and c2 in token_start_idxs]
-    if len(candidates) < 1:
-        return -1, -1
+    if candidates := [
+        (token_start_idxs.index(c1), token_start_idxs.index(c2))
+        for c1, c2 in candidates
+        if c1 in token_start_idxs and c2 in token_start_idxs
+    ]:
+        return (
+            candidates[0]
+            if trigger_span is None
+            else sorted(
+                candidates, key=lambda x: np.abs(trigger_span[0] - x[0])
+            )[0]
+        )
     else:
-        if trigger_span is None:
-            return candidates[0]
-        else:
-            return sorted(candidates, key=lambda x: np.abs(trigger_span[0] - x[0]))[0]
+        return -1, -1
 
 
 def get_span_idx_tri(pieces, token_start_idxs, span, tokenizer, trigger_span=None):
@@ -88,23 +93,28 @@ def get_span_idx_tri(pieces, token_start_idxs, span, tokenizer, trigger_span=Non
         if j == len(words):
             candidates.append((i, i + k))
 
-    candidates = [(token_start_idxs.index(c1), token_start_idxs.index(c2)) for c1, c2 in candidates if
-                  c1 in token_start_idxs and c2 in token_start_idxs]
-    if len(candidates) < 1:
-        return [(-1, -1)]
+    if candidates := [
+        (token_start_idxs.index(c1), token_start_idxs.index(c2))
+        for c1, c2 in candidates
+        if c1 in token_start_idxs and c2 in token_start_idxs
+    ]:
+        return (
+            candidates
+            if trigger_span is None
+            else sorted(
+                candidates, key=lambda x: np.abs(trigger_span[0] - x[0])
+            )
+        )
     else:
-        if trigger_span is None:
-            return candidates
-        else:
-            return sorted(candidates, key=lambda x: np.abs(trigger_span[0] - x[0]))
+        return [(-1, -1)]
 
 
 def cal_scores(gold_triggers, pred_triggers, gold_roles, pred_roles):
     # tri_id
     gold_tri_id_num, pred_tri_id_num, match_tri_id_num = 0, 0, 0
     for gold_trigger, pred_trigger in zip(gold_triggers, pred_triggers):
-        gold_set = set([(t[0], t[1]) for t in gold_trigger])
-        pred_set = set([(t[0], t[1]) for t in pred_trigger])
+        gold_set = {(t[0], t[1]) for t in gold_trigger}
+        pred_set = {(t[0], t[1]) for t in pred_trigger}
         gold_tri_id_num += len(gold_set)
         pred_tri_id_num += len(pred_set)
         match_tri_id_num += len(gold_set & pred_set)
@@ -121,8 +131,8 @@ def cal_scores(gold_triggers, pred_triggers, gold_roles, pred_roles):
     # arg_id
     gold_arg_id_num, pred_arg_id_num, match_arg_id_num = 0, 0, 0
     for gold_role, pred_role in zip(gold_roles, pred_roles):
-        gold_set = set([(r[0][2],) + r[1][:-1] for r in gold_role])
-        pred_set = set([(r[0][2],) + r[1][:-1] for r in pred_role])
+        gold_set = {(r[0][2],) + r[1][:-1] for r in gold_role}
+        pred_set = {(r[0][2],) + r[1][:-1] for r in pred_role}
 
         gold_arg_id_num += len(gold_set)
         pred_arg_id_num += len(pred_set)
@@ -131,27 +141,23 @@ def cal_scores(gold_triggers, pred_triggers, gold_roles, pred_roles):
     # arg_cls
     gold_arg_cls_num, pred_arg_cls_num, match_arg_cls_num = 0, 0, 0
     for gold_role, pred_role in zip(gold_roles, pred_roles):
-        gold_set = set([(r[0][2],) + r[1] for r in gold_role])
-        pred_set = set([(r[0][2],) + r[1] for r in pred_role])
+        gold_set = {(r[0][2],) + r[1] for r in gold_role}
+        pred_set = {(r[0][2],) + r[1] for r in pred_role}
 
         gold_arg_cls_num += len(gold_set)
         pred_arg_cls_num += len(pred_set)
         match_arg_cls_num += len(gold_set & pred_set)
 
-    scores = {
-        'tri_id': (gold_tri_id_num, pred_tri_id_num, match_tri_id_num) + compute_f1(gold_tri_id_num, pred_tri_id_num,
-                                                                                    match_tri_id_num),
-        'tri_cls': (gold_tri_cls_num, pred_tri_cls_num, match_tri_cls_num) + compute_f1(gold_tri_cls_num,
-                                                                                        pred_tri_cls_num,
-                                                                                        match_tri_cls_num),
-        'arg_id': (gold_arg_id_num, pred_arg_id_num, match_arg_id_num) + compute_f1(gold_arg_id_num, pred_arg_id_num,
-                                                                                    match_arg_id_num),
-        'arg_cls': (gold_arg_cls_num, pred_arg_cls_num, match_arg_cls_num) + compute_f1(gold_arg_cls_num,
-                                                                                        pred_arg_cls_num,
-                                                                                        match_arg_cls_num),
+    return {
+        'tri_id': (gold_tri_id_num, pred_tri_id_num, match_tri_id_num)
+        + compute_f1(gold_tri_id_num, pred_tri_id_num, match_tri_id_num),
+        'tri_cls': (gold_tri_cls_num, pred_tri_cls_num, match_tri_cls_num)
+        + compute_f1(gold_tri_cls_num, pred_tri_cls_num, match_tri_cls_num),
+        'arg_id': (gold_arg_id_num, pred_arg_id_num, match_arg_id_num)
+        + compute_f1(gold_arg_id_num, pred_arg_id_num, match_arg_id_num),
+        'arg_cls': (gold_arg_cls_num, pred_arg_cls_num, match_arg_cls_num)
+        + compute_f1(gold_arg_cls_num, pred_arg_cls_num, match_arg_cls_num),
     }
-
-    return scores
 
 
 # configuration
@@ -269,7 +275,7 @@ def main(config):
                     roles_ = []
                     for span, role_type, kwargs in pred_argument_object:
                         corres_tri_id = kwargs['cor tri cnt']
-                        if corres_tri_id in tri_id2obj.keys():
+                        if corres_tri_id in tri_id2obj:
                             arg_span = get_span_idx(batch.piece_idxs[bid], batch.token_start_idxs[bid], span, tokenizer,
                                                     tri_id2obj[corres_tri_id])
                             if arg_span[0] != -1:
@@ -369,15 +375,11 @@ def main(config):
 
                 p_triggers[bid].extend(p_triggers_)
 
-                # decode arguments
-                tri_id2obj = {}
-                for t in triggers_:
-                    tri_id2obj[t[3]['tri counter']] = (t[0], t[1], t[2])
-
+                tri_id2obj = {t[3]['tri counter']: (t[0], t[1], t[2]) for t in triggers_}
                 roles_ = []
                 for span, role_type, kwargs in pred_argument_object:
                     corres_tri_id = kwargs['cor tri cnt']
-                    if corres_tri_id in tri_id2obj.keys():
+                    if corres_tri_id in tri_id2obj:
                         arg_span = get_span_idx(batch.piece_idxs[bid], batch.token_start_idxs[bid], span, tokenizer,
                                                 tri_id2obj[corres_tri_id])
                         if arg_span[0] != -1:
@@ -402,15 +404,18 @@ def main(config):
         test_gold_roles.extend(batch.roles)
         test_pred_triggers.extend(p_triggers)
         test_pred_roles.extend(p_roles)
-        for gt, gr, pt, pr, te in zip(batch.triggers, batch.roles, p_triggers, p_roles, p_texts):
-            write_object.append({
+        write_object.extend(
+            {
                 "pred text": te,
                 "pred triggers": pt,
                 "gold triggers": gt,
                 "pred roles": pr,
-                "gold roles": gr
-            })
-
+                "gold roles": gr,
+            }
+            for gt, gr, pt, pr, te in zip(
+                batch.triggers, batch.roles, p_triggers, p_roles, p_texts
+            )
+        )
     progress.close()
 
     # calculate scores

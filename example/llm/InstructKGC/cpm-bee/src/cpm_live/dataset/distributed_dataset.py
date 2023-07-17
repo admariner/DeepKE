@@ -94,7 +94,7 @@ def _read_info_list(meta_path: str) -> List[FileInfo]:
     while True:
         try:
             with open(meta_path, "r", encoding="utf-8") as f:
-                for line in f.readlines():
+                for line in f:
                     line = line.strip()
                     if len(line) > 0:
                         info.append(FileInfo().loads(line))
@@ -107,7 +107,7 @@ def _read_info_list(meta_path: str) -> List[FileInfo]:
 
 def _write_info_list(meta_path: str, info: List[FileInfo]):
     base_path = os.path.dirname(meta_path)
-    random_fname = os.path.join(base_path, ".meta.bin.%s" % _random_string())
+    random_fname = os.path.join(base_path, f".meta.bin.{_random_string()}")
     while True:
         try:
             with open(random_fname, "w", encoding="utf-8") as f:
@@ -123,12 +123,12 @@ def _write_info_list(meta_path: str, info: List[FileInfo]):
 def _filtered_range(
     begin: int, end: int, rank: int, world_size: int, filter_set: Optional[Set[int]] = None
 ):
-    begin = begin + (rank + (world_size - (begin % world_size))) % world_size
+    begin += (rank + (world_size - (begin % world_size))) % world_size
 
     if filter_set is not None:
         return [i for i in range(begin, end, world_size) if i in filter_set]
     else:
-        return [i for i in range(begin, end, world_size)]
+        return list(range(begin, end, world_size))
 
 
 # for some bugs that may exist in hdfs
@@ -148,7 +148,7 @@ class SafeFile:
             self.offset = self._fp.tell()
             return res
         except Exception as e:
-            print("Error {}: reading blocks in read {}!".format(e, self.fname))
+            print(f"Error {e}: reading blocks in read {self.fname}!")
             self.open_file(self.fname, self.mode, self.offset)
             return self.read(size)
 
@@ -160,7 +160,7 @@ class SafeFile:
             self.offset = res
             return res
         except Exception as e:
-            print("Error {}: reading blocks in tell {}!".format(e, self.fname))
+            print(f"Error {e}: reading blocks in tell {self.fname}!")
             self.open_file(self.fname, self.mode, self.offset)
             return self.tell()
 
@@ -172,7 +172,7 @@ class SafeFile:
             self.offset = self._fp.tell()
             return res
         except Exception as e:
-            print("Error {}: reading blocks in seek {}!".format(e, self.fname))
+            print(f"Error {e}: reading blocks in seek {self.fname}!")
             self.open_file(self.fname, self.mode, self.offset)
             return self.seek(offset, whence)
 
@@ -195,7 +195,7 @@ class SafeFile:
                 self._fp.seek(offset, io.SEEK_SET)
             self.offset = self._fp.tell()
         except Exception as e:
-            print("Error {}: reading blocks in open_file {}!".format(e, self.fname))
+            print(f"Error {e}: reading blocks in open_file {self.fname}!")
             time.sleep(10)
             self.open_file(fname, mode, offset)
 
@@ -272,10 +272,7 @@ class DistributedDataset:
                       "meta_path={path}, err={err}!".format(path=meta_path, err=str(e)))
                 time.sleep(10)
 
-        if self._last_mod_time < mod_time:
-            # file changed
-            pass
-        else:
+        if self._last_mod_time >= mod_time:
             if fast_skip:
                 return
 
@@ -349,8 +346,7 @@ class DistributedDataset:
             self._unused_block = nw_unused_block
 
             self._file_ends = []
-            for v in info:
-                self._file_ends.append(v.block_end)
+            self._file_ends.extend(v.block_end for v in info)
         else:
             self._unused_block = []
             self._file_ends = []
@@ -390,8 +386,8 @@ class DistributedDataset:
         self._update_states()
         if len(self._unused_block) == 0:
             self._prepare_new_epoch()
-            if len(self._unused_block) == 0:
-                raise RuntimeError("Empty dataset {}".format(self._path))
+        if len(self._unused_block) == 0:
+            raise RuntimeError(f"Empty dataset {self._path}")
 
         mn_block: int = self._unused_block.pop()
         return mn_block
@@ -435,26 +431,7 @@ class DistributedDataset:
             inblock_offset = 0
 
         with torch.no_grad():
-            if self._world_size > 1:
-                gpu_num_unused_block = torch.tensor([num_unused_block], dtype=torch.long).cuda()
-                max_unused_blocks = (
-                    bmt.distributed.all_reduce(gpu_num_unused_block, op="max").cpu().item()
-                )
-                gpu_states = torch.full((max_unused_blocks,), -1, dtype=torch.long).cuda()
-                gpu_states[:num_unused_block] = torch.tensor(
-                    self._unused_block, dtype=torch.long
-                ).cuda()
-
-                gpu_block = torch.tensor(
-                    [curr_block, inblock_offset, num_unused_block, self._repeat_times],
-                    dtype=torch.long,
-                ).cuda()
-                global_states = bmt.distributed.all_gather(
-                    gpu_states
-                ).cpu()  # (world_size, max_unused_blocks)
-                global_block = bmt.distributed.all_gather(gpu_block).cpu()  # (world_size, 4)
-                return {"states": global_states, "block": global_block}
-            else:
+            if self._world_size <= 1:
                 return {
                     "states": torch.tensor([self._unused_block], dtype=torch.long, device="cpu"),
                     "block": torch.tensor(
@@ -463,6 +440,24 @@ class DistributedDataset:
                         device="cpu",
                     ),
                 }
+            gpu_num_unused_block = torch.tensor([num_unused_block], dtype=torch.long).cuda()
+            max_unused_blocks = (
+                bmt.distributed.all_reduce(gpu_num_unused_block, op="max").cpu().item()
+            )
+            gpu_states = torch.full((max_unused_blocks,), -1, dtype=torch.long).cuda()
+            gpu_states[:num_unused_block] = torch.tensor(
+                self._unused_block, dtype=torch.long
+            ).cuda()
+
+            gpu_block = torch.tensor(
+                [curr_block, inblock_offset, num_unused_block, self._repeat_times],
+                dtype=torch.long,
+            ).cuda()
+            global_states = bmt.distributed.all_gather(
+                gpu_states
+            ).cpu()  # (world_size, max_unused_blocks)
+            global_block = bmt.distributed.all_gather(gpu_block).cpu()  # (world_size, 4)
+            return {"states": global_states, "block": global_block}
 
     def load_state_dict(self, state, strict: bool = True):
         """Load dataset state.
@@ -483,27 +478,26 @@ class DistributedDataset:
                 raise ValueError(
                     "world_size changed (%d -> %d)" % (state["block"].size(0), self._world_size)
                 )
-            else:
-                self._curr_block = None
-                self._fp = None
-                self._curr_fname = None
-                self._repeat_times = int(block_info[0, 3].item())
+            self._curr_block = None
+            self._fp = None
+            self._curr_fname = None
+            self._repeat_times = int(block_info[0, 3].item())
 
-                # re-shuffle unused blocks
-                nw_unused_block: List[int] = []
-                for i in range(block_states.size(0)):
-                    # filter blocks that are not in this rank
-                    num_unused_blocks: int = int(block_info[i, 2].item())
-                    nw_unused_block.extend(
-                        [
-                            block_id
-                            for block_id in block_states[i, :num_unused_blocks].tolist()
-                            if block_id % self._world_size == self._rank
-                        ]
-                    )
-                if self._shuffle:
-                    random.shuffle(nw_unused_block)
-                self._unused_block = nw_unused_block
+            # re-shuffle unused blocks
+            nw_unused_block: List[int] = []
+            for i in range(block_states.size(0)):
+                # filter blocks that are not in this rank
+                num_unused_blocks: int = int(block_info[i, 2].item())
+                nw_unused_block.extend(
+                    [
+                        block_id
+                        for block_id in block_states[i, :num_unused_blocks].tolist()
+                        if block_id % self._world_size == self._rank
+                    ]
+                )
+            if self._shuffle:
+                random.shuffle(nw_unused_block)
+            self._unused_block = nw_unused_block
         else:
             curr_block, inblock_offset, num_unused_blocks, self._repeat_times = block_info[
                 self._rank
@@ -706,7 +700,7 @@ class DatasetBuilder:
 
         self._db_path = os.path.join(self._path, self._dbname)
         if os.path.exists(self._db_path):
-            raise ValueError("File exists `%s`" % self._db_path)
+            raise ValueError(f"File exists `{self._db_path}`")
 
     def __enter__(self):
         self._writer = DatasetWriter(self._db_path, self._block_size, self.serializer)
@@ -726,9 +720,7 @@ class DatasetBuilder:
             info: List[FileInfo] = []
             if os.path.exists(meta_path):
                 info = _read_info_list(meta_path)
-            last_block = 0
-            if len(info) > 0:
-                last_block = info[-1].block_end
+            last_block = info[-1].block_end if len(info) > 0 else 0
             info.append(
                 FileInfo(
                     self._dbname,
