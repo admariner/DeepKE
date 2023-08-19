@@ -23,10 +23,8 @@
   - [5.P-Tuning微调](#5p-tuning微调)
     - [P-Tuning微调ChatGLM](#p-tuning微调chatglm)
     - [预测](#预测-1)
-  - [6.CPM-Bee](#6cpm-bee)
-    - [OpenDelta微调CPM-Bee](#opendelta微调cpm-bee)
-  - [7.格式转换](#7格式转换)
-  - [8.Acknowledgment](#8acknowledgment)
+  - [6.格式转换](#7格式转换)
+  - [7.Acknowledgment](#8acknowledgment)
   - [Citation](#citation)
 
 
@@ -53,6 +51,38 @@ output="(弗雷泽,获奖,铜牌)(女子水球世界杯,举办地点,天津)(弗
 虽然`miss_input`中不包含“协助国家队夺得冠军”这段文字，但是模型能够补齐缺失的三元组，即仍然需要输出`(弗雷泽,属于,国家队)(国家队,夺得,冠军)`。
 
 ## 2.数据
+
+| 名称                  | 下载                                                                                                                     | 数量     | 描述                                                                                                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| kg_train.json       | [Google drive](https://drive.google.com/file/d/1W9HKpQxBGGERdP006ivjoDH5Q-1dNCSE/view?usp=sharing)                     | 281860 | [InstructIE](https://arxiv.org/abs/2305.11527) 中提到的数据集                                                                                                   |
+| instruct_train.json | [Google drive](https://drive.google.com/file/d/1WQVD_99_4XoUcoRDWRibZfO5jJdhjTQ1/view?usp=sharing)                     | 281860 | [KnowLM](https://github.com/zjunlp/KnowLM) 训练中涉及到的信息抽取指令数据，由kg_train.json改造而来                                                                            |
+| train.json, valid.json          | [Google drive](https://drive.google.com/file/d/1vfD4xgToVbCrFP2q-SD7iuRT2KWubIv9/view?usp=sharing)                     | 5000   | [CCKS2023 开放环境下的知识图谱构建与补全评测任务一：指令驱动的自适应知识图谱构建](https://tianchi.aliyun.com/competition/entrance/532080/introduction) 中的初赛训练集，从 instruct_train.json 中随机选出的 |
+
+
+`kg_train.json`：包含 `id`(唯一标识符)、`cate`(文本主题)、`input`(输入文本)、`kg`(三元组)字段，可以通过`kg`自由构建抽取的指令和输出。
+
+`instruct_train.json`：`instruction`(抽取指令)、`input`(输入文本)、`output`(输出文本)字段，`instruction`有16种格式(4种prompt+4种输出格式)，`output`是按照`instruction`中指定的输出格式生成的文本。
+
+`train.json`：包含 `id`(唯一标识符)、`cate`(文本主题)、`instruction`(抽取指令)、`input`(输入文本)、`output`(输出文本)字段、`kg`(三元组)字段，`instruction`、`output`都只有1种格式，也可以通过`kg`自由构建抽取的指令和输出。
+
+`valid.json`：字段含义同`train.json`，但是经过众包标注，更加准确。
+
+```
+relation_template =  {
+    0:'已知候选的关系列表：{s_schema}，请你根据关系列表，从以下输入中抽取出可能存在的头实体与尾实体，并给出对应的关系三元组。请按照{s_format}的格式回答。',
+    1:'我将给你个输入，请根据关系列表：{s_schema}，从输入中抽取出可能包含的关系三元组，并以{s_format}的形式回答。',
+    2:'我希望你根据关系列表从给定的输入中抽取可能的关系三元组，并以{s_format}的格式回答，关系列表={s_schema}。',
+    3:'给定的关系列表是：{s_schema}\n根据关系列表抽取关系三元组，在这个句子中可能包含哪些关系三元组？请以{s_format}的格式回答。',
+}
+
+relation_out_format = {
+    0:'"(头实体,关系,尾实体)"',
+    1:'"头实体是\n关系是\n尾实体是\n\n"',
+    2:'"关系：头实体,尾实体\n"',
+    3:"JSON字符串[{'head':'', 'relation':'', 'tail':''}, ]",
+}
+```
+
 
 比赛数据的训练集每条数据包含如下字段：
 
@@ -244,7 +274,7 @@ CUDA_VISIBLE_DEVICES="0,1" torchrun --nproc_per_node=2 --master_port=1331 src/te
 ```bash
 output_dir='path to save ChatGLM Lora'
 mkdir -p ${output_dir}
-CUDA_VISIBLE_DEVICES="0,1" torchrun --nproc_per_node=2 --master_port=1331 src/test_finetune.py \
+CUDA_VISIBLE_DEVICES="0,1" python --nproc_per_node=2 --master_port=1331 src/test_finetune.py \
     --do_train --do_eval \
     --model_name_or_path 'path or name to ChatGLM' \
     --model_name 'chatglm' \
@@ -397,93 +427,8 @@ CUDA_VISIBLE_DEVICES=0 python src/inference_pt.py \
 
 
 
-## 6.CPM-Bee
 
-### OpenDelta微调CPM-Bee
-
-首先，你需要将比赛的的trans.json转换为cpm-bee所要求的格式，并提取20%的样本作为测试集使用。
-
-```python
-import json
-import random
-
-with open('train.json', 'r', encoding='utf-8') as f:
-    data = [json.loads(line.strip()) for line in f]
-
-num_data = len(data)
-num_eval = int(num_data * 0.2)  # 20%作为验证集
-eval_data = random.sample(data, num_eval)
-
-with open('train.jsonl', 'w', encoding='utf-8') as f:
-    for d in data:
-        if d not in eval_data:
-            cpm_d={"input":d["input"],"prompt":d["instruction"],"<ans>":d["output"]}
-            json.dump(cpm_d, f, ensure_ascii=False)
-            f.write('\n')
-
-with open('eval.jsonl', 'w', encoding='utf-8') as f:
-    for d in eval_data:
-        cpm_d={"input":d["input"],"prompt":d["instruction"],"<ans>":d["output"]}
-        json.dump(cpm_d, f, ensure_ascii=False)
-        f.write('\n')
-```
-
-将处理好的数据放入bee_data/文件夹，并且[CPM-Bee](https://github.com/OpenBMB/CPM-Bee/tree/main/tutorials/basic_task_finetune)提供的数据处理方法将其转为二进制文件
-
-```bash
-python ../../src/preprocess_dataset.py --input bee_data --output_path bin_data --output_name ccpm_data
-```
-
-修改模型微调脚本scripts/finetune_cpm_bee.sh
-
-```bash
-#! /bin/bash
-# 四卡微调
-export CUDA_VISIBLE_DEVICES=0,1,2,3
-GPUS_PER_NODE=4
-
-NNODES=1
-MASTER_ADDR="localhost"
-MASTER_PORT=12346
-
-OPTS=""
-OPTS+=" --use-delta"  # 使用增量微调（delta-tuning）
-OPTS+=" --model-config config/cpm-bee-10b.json"  # 模型配置文件
-OPTS+=" --dataset ../tutorials/basic_task_finetune/bin_data/train"  # 训练集路径
-OPTS+=" --eval_dataset ../tutorials/basic_task_finetune/bin_data/eval"  # 验证集路径
-OPTS+=" --epoch 5"  # 训练epoch数
-OPTS+=" --batch-size 5"    # 数据批次大小
-OPTS+=" --train-iters 100"  # 用于lr_schedular
-OPTS+=" --save-name cpm_bee_finetune"  # 保存名称
-OPTS+=" --max-length 2048" # 最大长度
-OPTS+=" --save results/"  # 保存路径
-OPTS+=" --lr 0.0001"    # 学习率
-OPTS+=" --inspect-iters 100"  # 每100个step进行一次检查(bmtrain inspect)
-OPTS+=" --warmup-iters 1". # 预热学习率的步数为1
-OPTS+=" --eval-interval 50"  # 每50步验证一次
-OPTS+=" --early-stop-patience 5"  # 如果验证集loss连续5次不降，停止微调
-OPTS+=" --lr-decay-style noam"  # 选择noam方式调度学习率
-OPTS+=" --weight-decay 0.01"  # 优化器权重衰减率为0.01
-OPTS+=" --clip-grad 1.0"  # 半精度训练的grad clip
-OPTS+=" --loss-scale 32768"  # 半精度训练的loss scale
-OPTS+=" --start-step 0"  # 用于加载lr_schedular的中间状态
-OPTS+=" --load ckpts/pytorch_model.bin"  # 模型参数文件
-
-CMD="torchrun --nnodes=${NNODES} --nproc_per_node=${GPUS_PER_NODE} --rdzv_id=1 --rdzv_backend=c10d --rdzv_endpoint=${MASTER_ADDR}:${MASTER_PORT} finetune_cpm_bee.py ${OPTS}"
-
-echo ${CMD}
-$CMD
-```
-运行脚本
-```bash
-cd ../../src
-bash scripts/finetune_cpm_bee.sh
-```
-详见CPM[官方微调教程](https://github.com/OpenBMB/CPM-Bee/tree/main/tutorials/basic_task_finetune)
-
-
-
-## 7.格式转换
+## 6.格式转换
 上面的 `bash run_inference.bash` 会在 `result` 目录下输出 `output_llama_7b_e3_r8.json` 文件, 文件中不包含 'kg' 字段, 如果需要满足CCKS2023比赛的提交格式还需要从 'output' 中抽取出 'kg', 这里提供一个简单的样例 `convert.py`
 
 ```bash
@@ -494,7 +439,7 @@ python src/utils/convert.py \
 
 
 
-## 8.Acknowledgment
+## 7.Acknowledgment
 
 部分代码来自于 [Alpaca-LoRA](https://github.com/tloen/alpaca-lora)、[qlora](https://github.com/artidoro/qlora.git), 感谢！
 

@@ -69,7 +69,7 @@
 
 <details>
 <summary><b>Previous News</b></summary>
-  
+
 * `Nov, 2022` Add data [annotation instructions](https://github.com/zjunlp/DeepKE/blob/main/README_TAG.md) for entity recognition and relation extraction, automatic labelling of weakly supervised data ([entity extraction](https://github.com/zjunlp/DeepKE/tree/main/example/ner/prepare-data) and [relation extraction](https://github.com/zjunlp/DeepKE/tree/main/example/re/prepare-data)), and optimize [multi-GPU training](https://github.com/zjunlp/DeepKE/tree/main/example/re/standard).
   
 * `Sept, 2022` The paper [DeepKE: A Deep Learning Based Knowledge Extraction Toolkit for Knowledge Base Population](https://arxiv.org/abs/2201.03335) has been accepted by the EMNLP 2022 System Demonstration Track.
@@ -77,7 +77,7 @@
 * `Aug, 2022` We have added [data augmentation](https://github.com/zjunlp/DeepKE/tree/main/example/re/few-shot/DA) (Chinese, English) support for [low-resource relation extraction](https://github.com/zjunlp/DeepKE/tree/main/example/re/few-shot).
 
 * `June, 2022` We have added multimodal support for [entity](https://github.com/zjunlp/DeepKE/tree/main/example/ner/multimodal) and [relation extraction](https://github.com/zjunlp/DeepKE/tree/main/example/re/multimodal).
- 
+
 * `May, 2022` We have released [DeepKE-cnschema](https://github.com/zjunlp/DeepKE/blob/main/README_CNSCHEMA.md) with off-the-shelf knowledge extraction models.
 
 * `Jan, 2022` We have released a paper [DeepKE: A Deep Learning Based Knowledge Extraction Toolkit for Knowledge Base Population](https://arxiv.org/abs/2201.03335)
@@ -86,7 +86,7 @@
 
 * `Nov, 2021` The demo of DeepKE, supporting real-time extration without deploying and training, has been released.
 * The documentation of DeepKE, containing the details of DeepKE such as source codes and datasets, has been released.
- 
+
 * `Oct, 2021` `pip install deepke`
 * The codes of deepke-v2.0 have been released.
 
@@ -94,6 +94,7 @@
 
 * `Aug, 2018` The project DeepKE startup and codes of deepke-v0.1 have been released.
   
+
 </details>
 
 # Prediction Demo
@@ -133,7 +134,9 @@ pip install -r requirements.txt
 Please note that the `requirements.txt` file is located in the `example/llm` folder.
 
 ## DeepKE
-*DeepKE* supports `pip install deepke`. <br>Take the fully supervised relation extraction for example.
+- *DeepKE* supports `pip install deepke`. <br>Take the fully supervised relation extraction for example.
+- *DeepKE* supports both **manual** and **docker image** environment configuration, you can choose the appropriate way to build.
+#### 🔧Manual Environment Configuration
 
 **Step1** Download the basic code
 
@@ -143,15 +146,13 @@ git clone --depth 1 https://github.com/zjunlp/DeepKE.git
 
 **Step2** Create a virtual environment using `Anaconda` and enter it.<br>
 
- - **❗NOTE: We provide a [Dockerfile](https://github.com/zjunlp/DeepKE/tree/main/docker) with [tutorials](https://github.com/zjunlp/DeepKE/issues/145) please refer to the [Tips](#tips) to speed up installation**
-
 ```bash
 conda create -n deepke python=3.8
 
 conda activate deepke
 ```
 
-1. Install *DeepKE* with source code (**Recommended**)
+1. Install *DeepKE* with source code (**Recommended!!!**)
 
    ```bash
    python setup.py install
@@ -199,6 +200,24 @@ python predict.py
 ```
 
  - **❗NOTE: if you encounter any errors, please refer to the [Tips](#tips) or submit a GitHub issue.**
+
+
+
+#### 🐳Building With Docker Images
+**Step1** Install the Docker client
+
+Install Docker and start the Docker service.
+
+**Step2** Pull the docker image and run the container
+
+```bash
+docker pull zjunlp/deepke:v1
+docker run -it zjunlp/deepke:v1 /bin/bash
+```
+
+The remaining steps are the same as **Step 3 and onwards** in **Manual Environment Configuration**.
+
+ - **❗NOTE: You can refer to the [Tips](#tips) to speed up installation**
 
 ## Requirements
 
