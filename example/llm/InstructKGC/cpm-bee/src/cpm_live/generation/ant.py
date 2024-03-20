@@ -12,13 +12,15 @@ class CPMAntGeneration:
         self.prompt_length = prompt_length
 
     def _convert_to_tensors(self, input_text, task_id=2):
-        model_inputs = {}
         input_ids = [self.tokenizer.bos_id] + self.tokenizer.encode(input_text)
         input_ids = [j for j in input_ids if j != self.tokenizer.unk_id]
 
-        model_inputs["input"] = [
-            x + self.prompt_length * task_id for x in range(self.prompt_length)
-        ] + input_ids
+        model_inputs = {
+            "input": [
+                x + self.prompt_length * task_id for x in range(self.prompt_length)
+            ]
+            + input_ids
+        }
         model_inputs["length"] = len(model_inputs["input"])
         model_inputs["position"] = list(range(len(model_inputs["input"])))
         model_inputs["span"] = [0] * len(model_inputs["input"])
@@ -33,10 +35,10 @@ class CPMAntGeneration:
     def _process_texts(self, text_list):
         input_tensors = list(map(self._convert_to_tensors, text_list))
         keys = set(input_tensors[0].keys())
-        padded = {}
-        for key in keys:
-            padded[key] = pad(input_tensors, key, padding_side='left').cuda()
-        return padded
+        return {
+            key: pad(input_tensors, key, padding_side='left').cuda()
+            for key in keys
+        }
 
     def generate(self, text_list, **kwargs):
         model_inputs = self._process_texts(text_list)
@@ -227,8 +229,8 @@ class CPMAntBeamSearch(CPMAntGeneration):
                         break
 
                 # update next beam content
-                assert len(next_sent_beam) == 0 if i == max_length else beam_size
-                if len(next_sent_beam) == 0:
+                assert not next_sent_beam if i == max_length else beam_size
+                if not next_sent_beam:
                     next_sent_beam = [(0, self.tokenizer.pad_id, 0)] * beam_size  # pad the batch
                 next_batch_beam.extend(next_sent_beam)
                 assert len(next_batch_beam) == beam_size * (sent_id + 1)
@@ -267,12 +269,11 @@ class CPMAntBeamSearch(CPMAntGeneration):
 
         # select the best hypotheses
         results = []
-        for i, hypotheses in enumerate(generated_hyps):
+        for hypotheses in generated_hyps:
             best_hyp = max(hypotheses.hyp, key=lambda x: x[0])[1]
             results.append(best_hyp)
 
-        result_text = list(map(self.tokenizer.decode, results))
-        return result_text
+        return list(map(self.tokenizer.decode, results))
 
 
 class CPMAntRandomSampling(CPMAntGeneration):
@@ -381,5 +382,4 @@ class CPMAntRandomSampling(CPMAntGeneration):
             )  # segment id always the same as the previous token
             span = torch.cat([span, span[:, -1:]], dim=-1)
 
-        result_text = list(map(self.tokenizer.decode, results))
-        return result_text
+        return list(map(self.tokenizer.decode, results))

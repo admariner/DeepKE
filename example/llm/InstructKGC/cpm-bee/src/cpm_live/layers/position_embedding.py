@@ -41,7 +41,7 @@ class SegmentPositionEmbedding(bmt.DistributedModule):
         self.num_segments = num_segments
 
         self.relative_attention_bias = bmt.DistributedParameter(
-            torch.empty(num_segments * num_segments + num_buckets, num_heads, dtype=dtype),
+            torch.empty(num_segments**2 + num_buckets, num_heads, dtype=dtype),
             init_method=bmt.ParameterInitializer(
                 torch.nn.init.normal_, mean=init_mean, std=init_std
             ),

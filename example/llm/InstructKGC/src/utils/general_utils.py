@@ -65,8 +65,7 @@ def seed_torch(seed=42):
 def get_format_time():
     current_time = int(time.time())
     localtime = time.localtime(current_time)
-    dt = time.strftime('%Y:%m:%d %H:%M:%S', localtime)
-    return dt
+    return time.strftime('%Y:%m:%d %H:%M:%S', localtime)
 
 
 

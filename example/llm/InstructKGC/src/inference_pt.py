@@ -27,14 +27,14 @@ def main():
     args = set_args()
     model = AutoModel.from_pretrained(args.model_dir, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(args.model_dir, trust_remote_code=True)
-    model.half().to("cuda:{}".format(args.device))
+    model.half().to(f"cuda:{args.device}")
     model.eval()
     save_data = []
     f1 = 0.0
     max_tgt_len = args.max_len - args.max_src_len - 3
     s_time = time.time()
     with open(args.test_path, "r", encoding="utf-8") as fh:
-        for i, line in enumerate(tqdm(fh, desc="iter")):
+        for line in tqdm(fh, desc="iter"):
             with torch.no_grad():
                 sample = json.loads(line.strip())
                 src_tokens = tokenizer.tokenize(sample["input"])
@@ -45,7 +45,7 @@ def main():
 
                 tokens = prompt_tokens + src_tokens + ["[gMASK]", "<sop>"]
                 input_ids = tokenizer.convert_tokens_to_ids(tokens)
-                input_ids = torch.tensor([input_ids]).to("cuda:{}".format(args.device))
+                input_ids = torch.tensor([input_ids]).to(f"cuda:{args.device}")
                 generation_kwargs = {
                     "min_length": 5,
                     "max_new_tokens": max_tgt_len,
@@ -63,11 +63,10 @@ def main():
                 save_data.append(
                     {"id":sample["id"],"cata":sample["cate"],"instruction":sample["instruction"],"input": sample["input"],"output": res[0]})
     e_time = time.time()
-    print("总耗时：{}s".format(e_time - s_time))
+    print(f"总耗时：{e_time - s_time}s")
     save_path = os.path.join(args.model_dir, "ft_pt_answer.json")
-    fin = open(save_path, "w", encoding="utf-8")
-    json.dump(save_data, fin, ensure_ascii=False, indent=4)
-    fin.close()
+    with open(save_path, "w", encoding="utf-8") as fin:
+        json.dump(save_data, fin, ensure_ascii=False, indent=4)
 
 
 if __name__ == '__main__':

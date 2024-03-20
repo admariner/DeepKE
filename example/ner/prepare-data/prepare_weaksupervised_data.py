@@ -31,10 +31,10 @@ def auto_label(input_texts, data_type, end_words=['。','.','?','？','!','！']
         words = psg.cut(input_text)
 
         for word,pos in words: 
-            word,pos = word.strip(), pos.strip()   
+            word,pos = word.strip(), pos.strip()
             if not (word and pos):
                 continue
-            
+
             """ 如果是英文，需要转换成list，否则会按照Character级别遍历 """
             if mode == 'en':
                 word = word.split(' ')
@@ -42,7 +42,7 @@ def auto_label(input_texts, data_type, end_words=['。','.','?','？','!','！']
             """ 如果词性不是实体的标记，则打上O标记 """
             if pos not in label_set:
                 for char in word:
-                    string = char + ' ' + 'O' + '\n'
+                    string = f'{char} O' + '\n'
                     """ 在句子的结尾换行 """
                     if char in end_words:
                         string += '\n'
@@ -50,10 +50,7 @@ def auto_label(input_texts, data_type, end_words=['。','.','?','？','!','！']
             else:
                 """ 如果词性是实体的标记，则打上BI标记"""
                 for i, char in enumerate(word):
-                    if i == 0:
-                        string = char + ' ' + 'B-' + pos + '\n'    
-                    else:
-                        string = char + ' ' + 'I-' + pos + '\n'
+                    string = f'{char} B-{pos}' + '\n' if i == 0 else f'{char} I-{pos}' + '\n'
                     writer.write(string)
 
 if __name__ == '__main__':
@@ -69,20 +66,20 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     print(args, '\n')
-    
+
     mode = args.language
     source_data_dir = args.source_dir
     dict_dir = args.dict_dir
     train_rate = args.train_rate
     dev_rate = args.dev_rate
     test_rate = args.test_rate
-    
+
     dics = csv.reader(open(os.path.join(os.getcwd(), dict_dir),'r',encoding='utf8'))
-    label_set = set([raw[1] for raw in dics])
-    end_words = set(['。','.','?','？','!','！'])
+    label_set = {raw[1] for raw in dics}
+    end_words = {'。', '.', '?', '？', '!', '！'}
     add_entity(dict_dir)
 
-    lines = list()
+    lines = []
 
     for file in os.listdir(os.path.join(os.getcwd(), source_data_dir)):
         if ('txt' not in file):
@@ -97,7 +94,7 @@ if __name__ == '__main__':
 
     print(f'Total length of corpus is {len(lines)}\n')
 
-    assert len(lines) > 0
+    assert lines
     print(f'For example, the first instance is {lines[0]}\n')
 
     random.seed(42)

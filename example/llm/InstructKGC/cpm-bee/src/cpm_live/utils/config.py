@@ -73,5 +73,4 @@ class Config(object):
         return json.dumps(config_dict, indent=2, sort_keys=True) + "\n"
 
     def to_dict(self) -> Dict[str, Any]:
-        output = copy.deepcopy(self.__dict__)
-        return output
+        return copy.deepcopy(self.__dict__)

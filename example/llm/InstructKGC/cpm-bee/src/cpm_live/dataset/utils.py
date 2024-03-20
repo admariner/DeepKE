@@ -67,7 +67,10 @@ def shuffle_dataset(
     ds = SimpleDataset(path_src, serializer=RawSerializer())
     num_buckets = (ds.nbytes + bucket_size - 1) // bucket_size
 
-    tmp_files = [os.path.join(path_src, ".tmp.%s" % _random_string()) for _ in range(num_buckets)]
+    tmp_files = [
+        os.path.join(path_src, f".tmp.{_random_string()}")
+        for _ in range(num_buckets)
+    ]
 
     try:
         # Step 1: write to bucket randomly
@@ -89,34 +92,33 @@ def shuffle_dataset(
 
         # Step 2: shuffle inside bucket
         if output_name is None:
-            output_name = "%s.shuffle" % _random_string()
+            output_name = f"{_random_string()}.shuffle"
         with build_dataset(
-            path_tgt,
-            output_name,
-            block_size=block_size,
-            serializer=RawSerializer(),
-        ) as writer:
+                    path_tgt,
+                    output_name,
+                    block_size=block_size,
+                    serializer=RawSerializer(),
+                ) as writer:
             iterator = tmp_files
             if progress_bar:
                 iterator = tqdm(tmp_files, desc="Shuffle step 2/2")
 
             for fname in iterator:
-                fp = open(fname, "rb")
-                data_in_bucket = []
-                while True:
-                    try:
-                        raw_data = fp.read(4)
-                        if len(raw_data) == 0:
-                            # EOF
+                with open(fname, "rb") as fp:
+                    data_in_bucket = []
+                    while True:
+                        try:
+                            raw_data = fp.read(4)
+                            if len(raw_data) == 0:
+                                # EOF
+                                break
+                            len_data = struct.unpack("I", raw_data)[0]
+                            data_in_bucket.append(fp.read(len_data))
+                        except EOFError:
                             break
-                        len_data = struct.unpack("I", raw_data)[0]
-                        data_in_bucket.append(fp.read(len_data))
-                    except EOFError:
-                        break
-                random.shuffle(data_in_bucket)
-                for data in data_in_bucket:
-                    writer.write(data)
-                fp.close()
+                    random.shuffle(data_in_bucket)
+                    for data in data_in_bucket:
+                        writer.write(data)
                 os.unlink(fname)
     finally:
         # cleanup
@@ -149,10 +151,7 @@ def compact_dataset(path: str):
     nw_info: List[FileInfo] = []
     curr_block = 0
     for v in info:
-        if not os.path.exists(v.file_name):
-            # file is deleted
-            pass
-        else:
+        if os.path.exists(v.file_name):
             num_file_block = v.block_end - v.block_begin
             nw_info.append(
                 FileInfo(
@@ -238,10 +237,10 @@ def merge_dataset(dst: str, src: str):
         nw_fname = v.file_name
         if os.path.exists(dst_db_name):
             idx = 0
-            while os.path.exists(dst_db_name + "_{}".format(idx)):
+            while os.path.exists(f"{dst_db_name}_{idx}"):
                 idx += 1
-            dst_db_name = dst_db_name + "_{}".format(idx)
-            nw_fname = nw_fname + "_{}".format(idx)
+            dst_db_name = f"{dst_db_name}_{idx}"
+            nw_fname = f"{nw_fname}_{idx}"
 
         shutil.copy(os.path.join(src, v.file_name), dst_db_name)
         nw_info.append(

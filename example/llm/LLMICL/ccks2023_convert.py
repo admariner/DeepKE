@@ -11,7 +11,7 @@ def rte_post_process(result):
             s = spt[i].strip()
         except IndexError:
             s = ""
-        if i == 0 and len(s) != 0 and s[0] == '(':
+        if i == 0 and s != "" and s[0] == '(':
             s = s[1:]
         if i == 2 and len(s) != 0 and s[-1] == ')':
             s = s[:-1]
@@ -36,8 +36,7 @@ def add_args():
     parse.add_argument("--output_file", type=str, default="./data/valid_input.json", help="output file path")
     parse.add_argument("--number", str=int, default=5, help="number of examples")
     parse.add_argument("--mode", str=int, default="train", choices=["train", "test"])
-    options = parse.parse_args()
-    return options
+    return parse.parse_args()
 
 
 def convert_train(options):

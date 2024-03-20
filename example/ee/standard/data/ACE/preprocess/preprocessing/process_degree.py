@@ -30,14 +30,13 @@ def map_decode_back_pieces(encoded_input, ori_tokens, tokenizer):
     return pieces
 
 def convert(input_file, output_file, tokenizer, window_size_=3):
-    with open(input_file, 'r', encoding='utf-8') as r, \
-            open(output_file, 'w', encoding='utf-8') as w:
+    with (open(input_file, 'r', encoding='utf-8') as r, open(output_file, 'w', encoding='utf-8') as w):
         for line in r:
             doc = json.loads(line)
             doc_id = doc['doc_key']
             sentences = doc['sentences']
             sent_num = len(sentences)
-            total_tokens = sum([len(sent) for sent in sentences])
+            total_tokens = sum(len(sent) for sent in sentences)
             coref_entities = doc['clusters']
             coref_events = doc['event_clusters']
             # upper bound on token index for checking index in range
@@ -46,11 +45,7 @@ def convert(input_file, output_file, tokenizer, window_size_=3):
             relations = doc.get('relations', [[] for _ in range(sent_num)])
             events = doc.get('events', [[] for _ in range(sent_num)])
 
-            if window_size_ > sent_num:
-                window_size = sent_num
-            else:
-                window_size = window_size_
-                
+            window_size = sent_num if window_size_ > sent_num else window_size_
             offset = 0
             for i in range(sent_num - window_size + 1):
                 wnd_sent_starts = sent_starts[i:i+window_size+1]
@@ -105,7 +100,7 @@ def convert(input_file, output_file, tokenizer, window_size_=3):
                         ]
                     }
                     wnd_relations_.append(relation)
-                
+
                 # parse coref entities
                 # for each entity mention in a coref, only look up the obj in the dict if they are in the window
                 wnd_coref_ents = [[wnd_entity_map[(ent[0]-offset, ent[1]-offset+1)] for ent in coref if wnd_start <= ent[0]

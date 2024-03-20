@@ -40,9 +40,7 @@ class Token(object):
         self.is_special = is_special
 
     def __str__(self):
-        return "Token(token={}, start={}, is_unk={}, is_special={})".format(
-            self.token, self.start, self.is_unk, self.is_special
-        )
+        return f"Token(token={self.token}, start={self.start}, is_unk={self.is_unk}, is_special={self.is_special})"
 
     def __repr__(self):
         return self.__str__()
@@ -70,7 +68,7 @@ class CPMBeeTokenizer(object):
             k: v for k, v in self.encoder.items() if k.startswith("<") and k.endswith(">")
         }
 
-        self._max_word_len = max([len(x) for x in self.encoder.keys()])
+        self._max_word_len = max(len(x) for x in self.encoder.keys())
 
     def get_piece(self, text: str) -> str:
         text = text[: self._max_word_len]
@@ -113,7 +111,7 @@ class CPMBeeTokenizer(object):
         for i, c in enumerate(text):
             if is_special_token:
                 if c == "<":
-                    raise ValueError("Invalid special token at pos {}".format(i))
+                    raise ValueError(f"Invalid special token at pos {i}")
                 elif c == ">":
                     # end of special token
                     sentence_split[-1] += c
@@ -121,26 +119,24 @@ class CPMBeeTokenizer(object):
                     sentence_split.append("")
                 else:
                     sentence_split[-1] += c
-            else:
-                if c == "<":
-                    if is_escape:
-                        # case: <<
-                        sentence_split[-1] += c
-                        is_escape = False
-                    else:
-                        # case: x<
-                        is_escape = True
+            elif c == "<":
+                if is_escape:
+                    # case: <<
+                    sentence_split[-1] += c
+                    is_escape = False
                 else:
-                    if is_escape:
-                        # case <x
-                        is_special_token = True
-                        is_escape = False
-                        sentence_split.append("<" + c)
-                    else:
-                        # case xx
-                        sentence_split[-1] += c
+                    # case: x<
+                    is_escape = True
+            elif is_escape:
+                # case <x
+                is_special_token = True
+                is_escape = False
+                sentence_split.append(f"<{c}")
+            else:
+                # case xx
+                sentence_split[-1] += c
         if is_escape or is_special_token:
-            raise ValueError("Unexpected end of text `{}`".format(text))
+            raise ValueError(f"Unexpected end of text `{text}`")
 
         part_pos = 0
         for i, part in enumerate(sentence_split):
@@ -152,20 +148,17 @@ class CPMBeeTokenizer(object):
                 last_unk = None
                 while part_st < len(part):
                     piece = self.get_piece(part[part_st:])
-                    if piece not in self.encoder:
-                        if last_unk is None:
-                            last_unk = piece
-                        else:
-                            last_unk += piece
-                    else:
-                        if last_unk is None:
-                            output_tokens.append(Token(piece, part_st + part_pos, False, False))
-                        else:
+                    if piece in self.encoder:
+                        if last_unk is not None:
                             output_tokens.append(
                                 Token(last_unk, part_st + part_pos - len(last_unk), True, False)
                             )
-                            output_tokens.append(Token(piece, part_st + part_pos, False, False))
                             last_unk = None
+                        output_tokens.append(Token(piece, part_st + part_pos, False, False))
+                    elif last_unk is None:
+                        last_unk = piece
+                    else:
+                        last_unk += piece
                     part_st += len(piece)
                 if last_unk is not None:
                     # part end with UNK
@@ -201,7 +194,7 @@ class CPMBeeTokenizer(object):
             elif x.token in self.encoder:
                 ret.append(self.encoder[x.token])
             else:
-                raise ValueError("Unknown token `{}` at pos {}".format(x.token, x.start))
+                raise ValueError(f"Unknown token `{x.token}` at pos {x.start}")
 
         return ret, ext_table
 
@@ -213,11 +206,10 @@ class CPMBeeTokenizer(object):
         for token in tokens:
             if token in ext_table:
                 ret.append(ext_table[token])
-            else:
-                if token >= 0:
-                    w = self.decoder[token]
-                    if w in self._special_tokens:
-                        ret.append(w)
-                    else:
-                        ret.append(self.escape(w))
+            elif token >= 0:
+                w = self.decoder[token]
+                if w in self._special_tokens:
+                    ret.append(w)
+                else:
+                    ret.append(self.escape(w))
         return "".join(ret)

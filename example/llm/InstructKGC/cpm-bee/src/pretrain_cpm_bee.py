@@ -28,8 +28,7 @@ from cpm_live.training_tasks.bee import MixedDataset
 
 
 def get_tokenizer(args):
-    tokenizer = CPMBeeTokenizer()
-    return tokenizer
+    return CPMBeeTokenizer()
 
 
 def get_model(args):
@@ -138,13 +137,13 @@ class LossSpikeDetector:
                         }
                     )
             self._last_loss[task] = float(loss)
-        if len(loss_spike_result) > 0:
+        if loss_spike_result:
             self._write_log(iteration, self._last_data[-1], loss_spike_result)
 
     def _write_log(self, iteration: int, data: Any, result: List[Dict[str, Any]]):
         with open(self._log_path, "a", encoding="utf-8") as fp:
             fp.write("=" * 20)
-            fp.write("\nloss spike at {}\n".format(iteration))
+            fp.write(f"\nloss spike at {iteration}\n")
             fp.write("{}\n".format(json.dumps(result, indent=4, ensure_ascii=False)))
             fp.write("data: \n")
             for d in data:
@@ -357,7 +356,7 @@ def pretrain(
                 writer.add_scalar("Optimizer/scale", optim_manager.loss_scale, iteration)
                 writer.add_scalar("Optimizer/grad_norm", grad_norm.item(), iteration)
                 for task_name, loss in task_loss_map.items():
-                    writer.add_scalar("Loss/train/{}".format(task_name), loss, iteration)
+                    writer.add_scalar(f"Loss/train/{task_name}", loss, iteration)
 
             if args.save is not None and iteration % args.save_iters == 0:
                 bmt.save(model, os.path.join(args.save, args.save_name + ("-%d.pt" % iteration)))
@@ -376,7 +375,7 @@ def pretrain(
     finally:
         dataloader.close()
 
-    bmt.save(model, os.path.join(args.save, args.save_name + ".pt"))
+    bmt.save(model, os.path.join(args.save, f"{args.save_name}.pt"))
 
 
 def main():

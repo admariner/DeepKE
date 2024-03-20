@@ -10,7 +10,7 @@ def rte_post_process(result):
             s = spt[i].strip()
         except IndexError:
             s = ""
-        if i == 0 and len(s) != 0 and s[0] == '(':
+        if i == 0 and s != "" and s[0] == '(':
             s = s[1:]
         if i == 2 and len(s) != 0 and s[-1] == ')':
             s = s[:-1]
@@ -29,9 +29,7 @@ def rte_post_process(result):
 
 
 def clean(s):
-    if s.startswith("输入中包含的关系三元组是："):
-        return s.replace("输入中包含的关系三元组是：", "")
-    return s
+    return s.replace("输入中包含的关系三元组是：", "") if s.startswith("输入中包含的关系三元组是：") else s
 
 
 if __name__ == "__main__":

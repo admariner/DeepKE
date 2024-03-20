@@ -28,8 +28,7 @@ from cpm_live.training_tasks.bee import FinetuneDataset
 
 
 def get_tokenizer(args):
-    tokenizer = CPMBeeTokenizer()
-    return tokenizer
+    return CPMBeeTokenizer()
 
 
 def get_model(args):
@@ -51,10 +50,9 @@ def get_model(args):
 
 
 def get_optimizer(args, model):
-    optimizer = bmt.optim.AdamOffloadOptimizer(
+    return bmt.optim.AdamOffloadOptimizer(
         model.parameters(), weight_decay=args.weight_decay
     )
-    return optimizer
 
 
 def get_learning_rate_scheduler(args, optimizer):

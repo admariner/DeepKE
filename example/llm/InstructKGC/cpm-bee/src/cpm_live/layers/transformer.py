@@ -117,11 +117,7 @@ class Encoder(bmt.DistributedModule):
                         past_key_value=past_key_values[i] if past_key_values else None,
                         use_cache=use_cache,
                     )
-                    if use_cache:
-                        current_key_values.append(hidden_states[1])
-                        hidden_states = hidden_states[0]
+                    current_key_values.append(hidden_states[1])
+                    hidden_states = hidden_states[0]
                 hidden_states = self.output_layernorm(hidden_states)
-                if use_cache:
-                    return hidden_states, current_key_values
-                else:
-                    return hidden_states
+                return hidden_states, current_key_values

@@ -89,10 +89,7 @@ class Json(datasets.ArrowBasedBuilder):
                     with open(file, encoding="utf-8") as f:
                         dataset = json.load(f)
                     raise ValueError(
-                        f"Not able to read records in the JSON file at {file}. "
-                        f"You should probably indicate the field of the JSON file containing your records. "
-                        f"This JSON file contain the following fields: {str(list(dataset.keys()))}. "
-                        f"Select the correct one and provide it as `field='XXX'` to the dataset loading method. "
+                        f"Not able to read records in the JSON file at {file}. You should probably indicate the field of the JSON file containing your records. This JSON file contain the following fields: {list(dataset.keys())}. Select the correct one and provide it as `field='XXX'` to the dataset loading method. "
                     )
             if self.config.features:
                 # Encode column if ClassLabel

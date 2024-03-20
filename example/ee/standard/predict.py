@@ -43,12 +43,14 @@ def main(args):
     OmegaConf.set_struct(args, True)
     with open_dict(args):
         args["cwd"] = cwd
-    args.data_dir = os.path.join(args.cwd, "./data/" + args.data_name + "/" + args.task_name)
-    args.tag_path = os.path.join(args.cwd, "./data/" + args.data_name + "/schema")
+    args.data_dir = os.path.join(
+        args.cwd, f"./data/{args.data_name}/{args.task_name}"
+    )
+    args.tag_path = os.path.join(args.cwd, f"./data/{args.data_name}/schema")
     args.model_name_or_path = os.path.join(args.cwd, args.model_name_or_path)
     args.dev_trigger_pred_file = os.path.join(args.cwd, args.dev_trigger_pred_file) if args.do_pipeline_predict and args.task_name=="role" else None
     args.test_trigger_pred_file = os.path.join(args.cwd, args.test_trigger_pred_file) if args.do_pipeline_predict and args.task_name=="role" else None
-    args.do_predict = True if args.data_name == "ACE" else False
+    args.do_predict = args.data_name == "ACE"
 
     # Setup CUDA, GPU & distributed training
     if args.local_rank == -1 or args.no_cuda:
@@ -66,8 +68,14 @@ def main(args):
     logging.basicConfig(format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
                         datefmt="%m/%d/%Y %H:%M:%S",
                         level=logging.INFO if args.local_rank in [-1, 0] else logging.WARN)
-    logger.warning("Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
-                   args.local_rank, device, args.n_gpu, bool(args.local_rank != -1), args.fp16)
+    logger.warning(
+        "Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
+        args.local_rank,
+        device,
+        args.n_gpu,
+        args.local_rank != -1,
+        args.fp16,
+    )
 
     # Set seed
     set_seed(args)
@@ -110,16 +118,16 @@ def main(args):
 
     # Evaluation
     results = {}
-    if args.do_eval and args.local_rank in [-1, 0]:      
+    if args.do_eval and args.local_rank in [-1, 0]:  
 
         result, eval_pred_list = evaluate(args, model, eval_dataset, tokenizer, labels, pad_token_label_id, mode="dev", device=device)
-        results.update(result)
+        results |= result
         output_eval_file = os.path.join(args.model_name_or_path, "eval_results.txt")
         output_eval_pred_file = os.path.join(args.model_name_or_path, "eval_pred.json")
         with open(output_eval_file, "w") as writer:
             for key in sorted(results.keys()):
-                writer.write("{} = {}\n".format(key, str(results[key])))
-        
+                writer.write(f"{key} = {str(results[key])}\n")
+
         # dump the trigger pred result of dev.
         json.dump(eval_pred_list, open(output_eval_pred_file, "w"), ensure_ascii=False)
 
@@ -130,7 +138,7 @@ def main(args):
         output_test_results_file = os.path.join(args.model_name_or_path, "test_results.txt")
         with open(output_test_results_file, "w") as writer:
             for key in sorted(result.keys()):
-                writer.write("{} = {}\n".format(key, str(result[key])))
+                writer.write(f"{key} = {str(result[key])}\n")
         # Save predictions
         output_test_pred_file = os.path.join(args.model_name_or_path, "test_pred.json")
         json.dump(test_pred_list, open(output_test_pred_file, "w"), ensure_ascii=False)

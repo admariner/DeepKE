@@ -70,7 +70,7 @@ def main(cfg):
     cwd = utils.get_original_cwd()
     cfg.cwd = cwd
     print(cfg)
-    
+
     data_path = DATA_PATH[cfg.dataset_name]
     for mode, path in data_path.items():
         data_path[mode] = os.path.join(cfg.cwd, path)
@@ -79,7 +79,10 @@ def main(cfg):
 
     set_seed(cfg.seed) # set seed, default is 1
     if cfg.save_path is not None:  # make save_path dir
-        cfg.save_path = os.path.join(cfg.save_path, cfg.dataset_name+"_"+str(cfg.batch_size)+"_"+str(cfg.learning_rate)+cfg.notes)
+        cfg.save_path = os.path.join(
+            cfg.save_path,
+            f"{cfg.dataset_name}_{str(cfg.batch_size)}_{str(cfg.learning_rate)}{cfg.notes}",
+        )
         if not os.path.exists(cfg.save_path):
             os.makedirs(cfg.save_path, exist_ok=True)
 

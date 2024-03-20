@@ -48,18 +48,15 @@ class TrainNer(BertForTokenClassification):
         sequence_output = self.dropout(valid_output)
         logits = self.classifier(sequence_output)
 
-        if labels is not None:
-            loss_fct = nn.CrossEntropyLoss(ignore_index=0)
-            if attention_mask_label is not None:
-                active_loss = attention_mask_label.view(-1) == 1
-                active_logits = logits.view(-1, self.num_labels)[active_loss]
-                active_labels = labels.view(-1)[active_loss]
-                loss = loss_fct(active_logits, active_labels)
-            else:
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            return loss
-        else:
+        if labels is None:
             return logits
+        loss_fct = nn.CrossEntropyLoss(ignore_index=0)
+        if attention_mask_label is None:
+            return loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        active_loss = attention_mask_label.view(-1) == 1
+        active_logits = logits.view(-1, self.num_labels)[active_loss]
+        active_labels = labels.view(-1)[active_loss]
+        return loss_fct(active_logits, active_labels)
 
 
 wandb.init(project="DeepKE_NER_Standard")

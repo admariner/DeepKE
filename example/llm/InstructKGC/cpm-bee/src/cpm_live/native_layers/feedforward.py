@@ -90,11 +90,7 @@ class FeedForward(torch.nn.Module):
             dtype=dtype,
         )
 
-        if dropout_p is not None:
-            self.dropout = torch.nn.Dropout(dropout_p)
-        else:
-            self.dropout = None
-
+        self.dropout = torch.nn.Dropout(dropout_p) if dropout_p is not None else None
         self.w_out = Linear(
             dim_in=dim_ff,
             dim_out=dim_model,
